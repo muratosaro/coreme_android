@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CoreMe</string>
+
+    <!-- Auth -->
+    <string name="login_title">Welcome back</string>
+    <string name="login_subtitle">Sign in to CoreMe</string>
+    <string name="register_title">Create account</string>
+    <string name="field_username">Username</string>
+    <string name="field_email">Email</string>
+    <string name="field_password">Password</string>
+    <string name="field_display_name">Display name</string>
+    <string name="btn_login">Sign in</string>
+    <string name="btn_register">Create account</string>
+    <string name="btn_logout">Log out</string>
+    <string name="link_no_account">Don\'t have an account? Register</string>
+    <string name="link_have_account">Already have an account? Sign in</string>
+
+    <!-- Navigation -->
+    <string name="nav_chats">Chats</string>
+    <string name="nav_calls">Calls</string>
+    <string name="nav_contacts">Contacts</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Chats -->
+    <string name="chats_title">CoreMe</string>
+    <string name="new_message">New message</string>
+    <string name="new_group">New group</string>
+    <string name="new_channel">New channel</string>
+    <string name="type_message">Message</string>
+    <string name="reply_to">Reply to %s</string>
+    <string name="editing_message">Editing message</string>
+    <string name="message_deleted">Message deleted</string>
+    <string name="pinned_message">Pinned message</string>
+    <string name="typing">typing…</string>
+
+    <!-- Messages actions -->
+    <string name="msg_action_reply">Reply</string>
+    <string name="msg_action_edit">Edit</string>
+    <string name="msg_action_delete">Delete</string>
+    <string name="msg_action_pin">Pin</string>
+    <string name="msg_action_copy">Copy</string>
+    <string name="msg_delete_for_me">Delete for me</string>
+    <string name="msg_delete_for_all">Delete for everyone</string>
+
+    <!-- Calls -->
+    <string name="calls_title">Calls</string>
+    <string name="call_voice">Voice call</string>
+    <string name="call_video">Video call</string>
+    <string name="call_incoming">Incoming call…</string>
+    <string name="call_outgoing">Calling…</string>
+    <string name="call_accept">Accept</string>
+    <string name="call_decline">Decline</string>
+    <string name="call_end">End call</string>
+    <string name="call_mute">Mute</string>
+    <string name="call_speaker">Speaker</string>
+    <string name="call_camera">Camera</string>
+
+    <!-- Contacts -->
+    <string name="contacts_title">Contacts</string>
+    <string name="add_contact">Add contact</string>
+    <string name="search_contacts">Search contacts</string>
+    <string name="edit_nickname">Edit nickname</string>
+    <string name="remove_contact">Remove contact</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="edit_profile">Edit profile</string>
+    <string name="change_avatar">Change photo</string>
+    <string name="change_password">Change password</string>
+    <string name="notifications">Notifications</string>
+    <string name="privacy">Privacy</string>
+    <string name="appearance">Appearance</string>
+    <string name="about">About</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="current_password">Current password</string>
+    <string name="new_password">New password</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_confirm">Confirm</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">No connection. Check your network.</string>
+    <string name="error_unauthorized">Session expired. Please sign in again.</string>
+    <string name="error_username_taken">Username already taken</string>
+    <string name="error_invalid_credentials">Invalid username or password</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="error_password_too_short">Password must be at least 6 characters</string>
+    <string name="error_username_too_long">Username must be 50 characters or less</string>
+</resources>

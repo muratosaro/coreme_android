@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Minimal XML theme used before Compose takes over.
+        Background matches our dark base color so there's no white flash on launch.
+        Compose handles all actual theming via CoremeTheme.
+    -->
+    <style name="Theme.CoreMe" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/bg_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+
+    <color name="bg_dark">#FF1A1A20</color>
+</resources>

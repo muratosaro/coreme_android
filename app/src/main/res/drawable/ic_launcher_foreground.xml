@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!--
+        Letter "C" as a thick arc: starts at top-right gap, sweeps 300° counter-clockwise,
+        ends at bottom-right gap. Center (54,54), effective radius ≈ 32.
+        strokeLineCap="round" closes the ends of the arc with rounded tips.
+    -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="11"
+        android:strokeLineCap="round"
+        android:pathData="M82,38 A32,32,0,1,0,82,70" />
+</vector>
