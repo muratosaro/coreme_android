@@ -1,3 +1,14 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) FileInputStream(f).use { load(it) }
+}
+
+val debugBaseUrl: String = localProperties.getProperty("debug.base.url") ?: "http://10.0.2.2:3000"
+val releaseBaseUrl: String = localProperties.getProperty("release.base.url") ?: "https://api.coreme.app"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,19 +30,31 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-        // Override in local.properties or change here for your dev setup
-        buildConfigField("String", "BASE_URL", "\"http://192.168.0.200:3000\"")
+    signingConfigs {
+        create("release") {
+            val storeFilePath = localProperties.getProperty("release.store.file")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = localProperties.getProperty("release.store.password")
+                keyAlias = localProperties.getProperty("release.key.alias")
+                keyPassword = localProperties.getProperty("release.key.password")
+            }
+        }
     }
 
     buildTypes {
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
-            buildConfigField("String", "BASE_URL", "\"http://192.168.0.200:3000\"")
+            buildConfigField("String", "BASE_URL", "\"$debugBaseUrl\"")
         }
         release {
-            buildConfigField("String", "BASE_URL", "\"https://api.coreme.app\"")
+            if (localProperties.getProperty("release.store.file") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            buildConfigField("String", "BASE_URL", "\"$releaseBaseUrl\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

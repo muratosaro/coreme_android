@@ -1,0 +1,19 @@
+# Скопируй этот файл в local.properties и подставь свои значения.
+# local.properties в .gitignore и не коммитится.
+
+# SDK location (обычно Android Studio проставляет автоматически)
+# sdk.dir=C:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+
+# URL бэкенда для debug-сборки.
+# 10.0.2.2 — это localhost твоего компьютера из эмулятора Android.
+# Если запускаешь на физическом устройстве в той же Wi-Fi сети, используй IP компьютера.
+debug.base.url=http://10.0.2.2:3000
+
+# URL бэкенда для release-сборки.
+release.base.url=https://api.coreme.app
+
+# === Release signing (заполнить перед сборкой релиза) ===
+# release.store.file=../keystore/coreme-release.jks
+# release.store.password=
+# release.key.alias=coreme
+# release.key.password=
