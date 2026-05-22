@@ -1,6 +1,7 @@
 package app.coreme.messenger
 
 import android.app.Application
+import app.coreme.messenger.core.notifications.NotificationHelper
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 
@@ -12,5 +13,6 @@ class CoremeApplication : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        NotificationHelper.createChannels(this)
     }
 }

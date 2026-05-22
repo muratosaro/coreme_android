@@ -43,3 +43,24 @@
 # Socket.IO
 -keep class io.socket.** { *; }
 -keep class io.engine.io.** { *; }
+
+# Coil
+-dontwarn coil3.**
+
+# Timber
+-dontwarn timber.log.**
+
+# Domain / DTO models (keep for serialization + reflection)
+-keep class app.coreme.messenger.features.**.data.dto.** { *; }
+-keep class app.coreme.messenger.features.**.domain.model.** { *; }
+
+# Enums (keep names for socket/api string matching)
+-keepclassmembers enum app.coreme.messenger.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ViewModels injected by Hilt — keep constructor
+-keepclasseswithmembers class * extends androidx.lifecycle.ViewModel {
+    @javax.inject.Inject <init>(...);
+}

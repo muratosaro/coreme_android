@@ -19,14 +19,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Override in local.properties or change here for your dev setup
+        buildConfigField("String", "BASE_URL", "\"http://192.168.0.200:3000\"")
     }
 
     buildTypes {
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
+            buildConfigField("String", "BASE_URL", "\"http://192.168.0.200:3000\"")
         }
         release {
+            buildConfigField("String", "BASE_URL", "\"https://api.coreme.app\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -132,6 +137,7 @@ dependencies {
     testImplementation(libs.junit5.api)
     testImplementation(libs.junit5.params)
     testRuntimeOnly(libs.junit5.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
