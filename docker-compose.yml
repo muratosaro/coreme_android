@@ -23,7 +23,7 @@ services:
   # ── coturn TURN server (WebRTC NAT traversal) ─────────────────────────────────
   turn:
     build:
-      context: ./turn
+      context: ./infra/turn
       dockerfile: Dockerfile
     container_name: coreme_turn
     restart: unless-stopped
@@ -49,8 +49,8 @@ services:
     ports:
       - '9090:9090'
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     profiles:
       - observability
@@ -79,7 +79,7 @@ services:
     ports:
       - '3100:3100'
     volumes:
-      - ./monitoring/loki-config.yml:/etc/loki/config.yml:ro
+      - ./infra/monitoring/loki-config.yml:/etc/loki/config.yml:ro
       - loki_data:/loki
     profiles:
       - observability
@@ -96,7 +96,7 @@ services:
     ports:
       - '9093:9093'
     volumes:
-      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     profiles:
       - observability
 
@@ -158,7 +158,7 @@ services:
   # ── Go REST API (порт 3001) ──────────────────────────────────────────────────
   api:
     build:
-      context: ./backend
+      context: ./services/api
       dockerfile: Dockerfile
     container_name: coreme_api
     restart: unless-stopped
@@ -190,10 +190,10 @@ services:
       start_period: 30s
     stop_grace_period: 30s
 
-  # ── Node.js Realtime (порт 3002) ─────────────────────────────────────────────
+  # ── Go Realtime WebSocket (порт 3002) ────────────────────────────────────────
   realtime:
     build:
-      context: ./realtime
+      context: ./services/realtime
       dockerfile: Dockerfile
     container_name: coreme_realtime
     restart: unless-stopped
@@ -207,19 +207,10 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET}
-      REDIS_URL: redis://redis:6379
-      NATS_URL: nats://nats:4222
-      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY:-""}
       SENTRY_DSN: ${SENTRY_DSN:-""}
       APP_ENV: ${APP_ENV:-production}
-    volumes:
-      - uploads:/app/uploads
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nats:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
@@ -232,7 +223,7 @@ services:
   # ── Nginx reverse proxy (порти 80/443) ────────────────────────────────────────
   nginx:
     build:
-      context: ./nginx
+      context: ./infra/nginx
       dockerfile: Dockerfile
     container_name: coreme_nginx
     restart: unless-stopped

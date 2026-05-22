@@ -37,21 +37,48 @@ keytool -genkey -v -keystore coreme-release.jks -keyalg RSA -keysize 2048 -valid
 
 ## Backend (Go API)
 
-Go REST API находится в папке `backend/`. Стек: Gin, PostgreSQL (pgx), JWT, Sentry, OpenTelemetry.
+Go REST API знаходиться в `services/api/`. Стек: Gin, PostgreSQL (pgx), JWT, Sentry, OpenTelemetry.
 
 ### Запуск
 
 ```bash
-cd backend
-cp .env.example .env     # заполнить DB_* и JWT_SECRET
-go run ./cmd/api         # по умолчанию порт 3001
+cd services/api
+cp .env.example .env     # заповнити DB_* та JWT_SECRET
+go run ./cmd/api         # порт 3001
 ```
 
-### Тесты
+### Тести
 
 ```bash
-cd backend
+cd services/api
 go test ./...
 ```
 
-Тесты с БД пропускаются автоматически, если PostgreSQL недоступен.
+Тести з БД пропускаються автоматично, якщо PostgreSQL недоступний.
+
+## Realtime (Go WebSocket)
+
+WebSocket-сервіс знаходиться в `services/realtime/`. Порт 3002.
+
+```bash
+cd services/realtime
+cp .env.example .env
+go run ./cmd/realtime
+```
+
+## Infrastructure
+
+| Папка               | Призначення                          |
+|---------------------|--------------------------------------|
+| `infra/k8s/`        | Kubernetes manifests                 |
+| `infra/nginx/`      | Nginx reverse proxy                  |
+| `infra/monitoring/` | Prometheus, Grafana, Loki, Jaeger    |
+| `infra/turn/`       | coturn TURN server (WebRTC)          |
+| `db/`               | SQL schema та міграції               |
+
+### Запуск всього стеку
+
+```bash
+cp .env.example .env    # заповнити секрети
+docker compose up -d
+```
