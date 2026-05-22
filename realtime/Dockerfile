@@ -1,7 +1,13 @@
-FROM node:20-alpine
+FROM golang:1.22-alpine AS builder
 WORKDIR /app
-COPY package.json ./
-RUN npm install --omit=dev
-COPY src ./src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /realtime ./cmd/realtime
+
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates tzdata wget
+WORKDIR /app
+COPY --from=builder /realtime .
 EXPOSE 3002
-CMD ["node", "src/index.js"]
+CMD ["./realtime"]

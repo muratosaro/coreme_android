@@ -6,8 +6,10 @@ val localProperties = Properties().apply {
     if (f.exists()) FileInputStream(f).use { load(it) }
 }
 
-val debugBaseUrl: String = localProperties.getProperty("debug.base.url") ?: "http://10.0.2.2:3000"
+val debugBaseUrl: String = localProperties.getProperty("debug.base.url") ?: "http://10.0.2.2:3001"
 val releaseBaseUrl: String = localProperties.getProperty("release.base.url") ?: "https://api.coreme.app"
+val debugRealtimeUrl: String = localProperties.getProperty("debug.realtime.url") ?: "ws://10.0.2.2:3002"
+val releaseRealtimeUrl: String = localProperties.getProperty("release.realtime.url") ?: "wss://api.coreme.app"
 
 plugins {
     alias(libs.plugins.android.application)
@@ -49,12 +51,14 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             buildConfigField("String", "BASE_URL", "\"$debugBaseUrl\"")
+            buildConfigField("String", "REALTIME_URL", "\"$debugRealtimeUrl\"")
         }
         release {
             if (localProperties.getProperty("release.store.file") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
             buildConfigField("String", "BASE_URL", "\"$releaseBaseUrl\"")
+            buildConfigField("String", "REALTIME_URL", "\"$releaseRealtimeUrl\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -121,11 +125,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
-
-    // Socket.IO (exclude org.json to avoid conflict with Android's built-in)
-    implementation(libs.socketio) {
-        exclude(group = "org.json", module = "json")
-    }
 
     // Storage
     implementation(libs.datastore.preferences)

@@ -40,10 +40,6 @@
 # Sentry
 -keep class io.sentry.** { *; }
 
-# Socket.IO
--keep class io.socket.** { *; }
--keep class io.engine.io.** { *; }
-
 # Coil
 -dontwarn coil3.**
 

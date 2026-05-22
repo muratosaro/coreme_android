@@ -12,6 +12,10 @@ debug.base.url=http://10.0.2.2:3001
 # URL бэкенда для release-сборки.
 release.base.url=https://api.coreme.app
 
+# URL WebSocket realtime-сервісу.
+debug.realtime.url=ws://10.0.2.2:3002
+release.realtime.url=wss://api.coreme.app
+
 # === Release signing (заполнить перед сборкой релиза) ===
 # release.store.file=../keystore/coreme-release.jks
 # release.store.password=

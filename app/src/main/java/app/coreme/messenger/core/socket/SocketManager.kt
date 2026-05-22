@@ -2,12 +2,17 @@ package app.coreme.messenger.core.socket
 
 import app.coreme.messenger.BuildConfig
 import app.coreme.messenger.core.storage.SecureTokenStorage
-import io.socket.client.IO
-import io.socket.client.Socket
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okio.ByteString
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,140 +40,98 @@ sealed interface SocketEvent {
 class SocketManager @Inject constructor(
     private val tokenStorage: SecureTokenStorage,
 ) {
+    private val client = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS) // no timeout for WebSocket
+        .build()
 
-    private var socket: Socket? = null
+    private var ws: WebSocket? = null
 
     private val _events = MutableSharedFlow<SocketEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<SocketEvent> = _events.asSharedFlow()
 
     fun connect() {
-        if (socket?.connected() == true) return
+        if (ws != null) return
         val token = tokenStorage.getAccessToken() ?: return
-
-        val opts = IO.Options.builder()
-            .setAuth(mapOf("token" to token))
-            .setReconnection(true)
-            .setReconnectionAttempts(Int.MAX_VALUE)
-            .setReconnectionDelay(1_000)
+        val request = Request.Builder()
+            .url("${BuildConfig.REALTIME_URL}/ws?token=$token")
             .build()
-
-        socket = IO.socket(BuildConfig.BASE_URL, opts).apply {
-            on(Socket.EVENT_CONNECT) { _events.tryEmit(SocketEvent.Connected) }
-            on(Socket.EVENT_DISCONNECT) { _events.tryEmit(SocketEvent.Disconnected) }
-
-            on("new_message") { args ->
-                (args.firstOrNull() as? JSONObject)?.let {
-                    _events.tryEmit(SocketEvent.NewMessage(it))
-                }
-            }
-            on("reaction_updated") { args ->
-                (args.firstOrNull() as? JSONObject)?.let {
-                    _events.tryEmit(SocketEvent.ReactionUpdated(it))
-                }
-            }
-            on("user_typing") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(
-                        SocketEvent.UserTyping(
-                            chatId = obj.optString("chatId"),
-                            userId = obj.optString("userId"),
-                            isTyping = obj.optBoolean("isTyping"),
-                        ),
-                    )
-                }
-            }
-            on("message_read") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(
-                        SocketEvent.MessageRead(
-                            chatId = obj.optString("chatId"),
-                            userId = obj.optString("userId"),
-                        ),
-                    )
-                }
-            }
-            on("user_online") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(SocketEvent.UserOnline(obj.optString("userId"), true))
-                }
-            }
-            on("user_offline") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(SocketEvent.UserOnline(obj.optString("userId"), false))
-                }
-            }
-            on("incoming_call") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(
-                        SocketEvent.IncomingCall(
-                            callId = obj.optString("callId"),
-                            chatId = obj.optString("chatId"),
-                            callType = obj.optString("callType", "voice"),
-                            callerName = obj.optString("callerName"),
-                            callerAvatarUrl = obj.optString("callerAvatarUrl").ifBlank { null },
-                        ),
-                    )
-                }
-            }
-            on("call_accepted") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(SocketEvent.CallAccepted(obj.optString("callId")))
-                }
-            }
-            on("call_rejected") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(SocketEvent.CallRejected(obj.optString("callId")))
-                }
-            }
-            on("call_ended") { args ->
-                (args.firstOrNull() as? JSONObject)?.let { obj ->
-                    _events.tryEmit(SocketEvent.CallEnded(obj.optString("callId")))
-                }
-            }
-
-            connect()
-        }
+        ws = client.newWebSocket(request, listener)
     }
 
     fun disconnect() {
-        socket?.disconnect()
-        socket?.off()
-        socket = null
+        ws?.close(1000, "disconnect")
+        ws = null
     }
 
-    fun joinChat(chatId: String) {
-        socket?.emit("join_chat", JSONObject().put("chatId", chatId))
-    }
+    fun joinChat(chatId: String) = send(msg("join_chat") { put("chatId", chatId) })
+    fun sendTypingStart(chatId: String) = send(msg("typing_start") { put("chatId", chatId) })
+    fun sendTypingStop(chatId: String) = send(msg("typing_stop") { put("chatId", chatId) })
+    fun markRead(chatId: String) = send(msg("mark_read") { put("chatId", chatId) })
 
-    fun sendTypingStart(chatId: String) {
-        socket?.emit("typing_start", JSONObject().put("chatId", chatId))
-    }
+    fun initiateCall(targetUserId: String, callType: String) = send(
+        msg("initiate_call") { put("targetUserId", targetUserId); put("callType", callType) }
+    )
+    fun acceptCall(callId: String) = send(msg("accept_call") { put("callId", callId) })
+    fun rejectCall(callId: String) = send(msg("reject_call") { put("callId", callId) })
+    fun endCall(callId: String) = send(msg("end_call") { put("callId", callId) })
 
-    fun sendTypingStop(chatId: String) {
-        socket?.emit("typing_stop", JSONObject().put("chatId", chatId))
-    }
+    val isConnected: Boolean get() = ws != null
 
-    fun markRead(chatId: String) {
-        socket?.emit("mark_read", JSONObject().put("chatId", chatId))
-    }
+    private fun send(json: JSONObject) { ws?.send(json.toString()) }
 
-    fun initiateCall(targetUserId: String, callType: String) {
-        socket?.emit("initiate_call", JSONObject()
-            .put("targetUserId", targetUserId)
-            .put("callType", callType))
-    }
+    private fun msg(type: String, block: JSONObject.() -> Unit = {}): JSONObject =
+        JSONObject().apply { put("type", type); block() }
 
-    fun acceptCall(callId: String) {
-        socket?.emit("accept_call", JSONObject().put("callId", callId))
-    }
+    private val listener = object : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            _events.tryEmit(SocketEvent.Connected)
+        }
 
-    fun rejectCall(callId: String) {
-        socket?.emit("reject_call", JSONObject().put("callId", callId))
-    }
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            val obj = runCatching { JSONObject(text) }.getOrNull() ?: return
+            when (obj.optString("type")) {
+                "new_message" -> _events.tryEmit(SocketEvent.NewMessage(obj))
+                "reaction_updated" -> _events.tryEmit(SocketEvent.ReactionUpdated(obj))
+                "user_typing" -> _events.tryEmit(
+                    SocketEvent.UserTyping(
+                        chatId = obj.optString("chatId"),
+                        userId = obj.optString("userId"),
+                        isTyping = obj.optBoolean("isTyping"),
+                    )
+                )
+                "message_read" -> _events.tryEmit(
+                    SocketEvent.MessageRead(
+                        chatId = obj.optString("chatId"),
+                        userId = obj.optString("userId"),
+                    )
+                )
+                "user_online" -> _events.tryEmit(SocketEvent.UserOnline(obj.optString("userId"), true))
+                "user_offline" -> _events.tryEmit(SocketEvent.UserOnline(obj.optString("userId"), false))
+                "incoming_call" -> _events.tryEmit(
+                    SocketEvent.IncomingCall(
+                        callId = obj.optString("callId"),
+                        chatId = obj.optString("chatId"),
+                        callType = obj.optString("callType", "voice"),
+                        callerName = obj.optString("callerName"),
+                        callerAvatarUrl = obj.optString("callerAvatarUrl").ifBlank { null },
+                    )
+                )
+                "call_accepted" -> _events.tryEmit(SocketEvent.CallAccepted(obj.optString("callId")))
+                "call_rejected" -> _events.tryEmit(SocketEvent.CallRejected(obj.optString("callId")))
+                "call_ended" -> _events.tryEmit(SocketEvent.CallEnded(obj.optString("callId")))
+            }
+        }
 
-    fun endCall(callId: String) {
-        socket?.emit("end_call", JSONObject().put("callId", callId))
-    }
+        override fun onMessage(webSocket: WebSocket, bytes: ByteString) = Unit
 
-    val isConnected: Boolean get() = socket?.connected() == true
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            ws = null
+            _events.tryEmit(SocketEvent.Disconnected)
+        }
+
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            ws = null
+            _events.tryEmit(SocketEvent.Disconnected)
+        }
+    }
 }
