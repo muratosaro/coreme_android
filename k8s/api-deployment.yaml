@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coreme-api
+  namespace: coreme
+  labels:
+    app: coreme-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coreme-api
+  template:
+    metadata:
+      labels:
+        app: coreme-api
+    spec:
+      containers:
+        - name: api
+          image: coreme/api:latest
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - secretRef:
+                name: coreme-secrets
+          env:
+            - name: API_PORT
+              value: "3001"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://jaeger:4318
+            - name: OTEL_SERVICE_NAME
+              value: coreme-api
+            - name: APP_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coreme-api
+  namespace: coreme
+spec:
+  selector:
+    app: coreme-api
+  ports:
+    - port: 3001
+      targetPort: 3001

@@ -11,6 +11,7 @@ local.properties
 *.keystore
 /keystore/
 
-# Go backend
-backend/.env
+# Backend
+.env
 backend/uploads/
+realtime/node_modules/

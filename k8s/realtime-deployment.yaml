@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coreme-realtime
+  namespace: coreme
+  labels:
+    app: coreme-realtime
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coreme-realtime
+  template:
+    metadata:
+      labels:
+        app: coreme-realtime
+    spec:
+      containers:
+        - name: realtime
+          image: coreme/realtime:latest
+          ports:
+            - containerPort: 3002
+          envFrom:
+            - secretRef:
+                name: coreme-secrets
+          env:
+            - name: REALTIME_PORT
+              value: "3002"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: APP_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3002
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coreme-realtime
+  namespace: coreme
+spec:
+  selector:
+    app: coreme-realtime
+  ports:
+    - port: 3002
+      targetPort: 3002

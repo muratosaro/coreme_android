@@ -1,0 +1,6 @@
+# CoreMe PostgreSQL backup cron job
+# Install: crontab -l | cat - server/scripts/backup-cron | crontab -
+# Requires: backup.sh, aws CLI, pg_dump
+
+# Every day at 02:00 UTC
+0 2 * * * /opt/coreme/scripts/backup.sh >> /var/log/coreme-backup.log 2>&1

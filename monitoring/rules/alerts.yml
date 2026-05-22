@@ -1,0 +1,71 @@
+groups:
+  - name: coreme.backend
+    interval: 30s
+    rules:
+
+      # ── API availability ────────────────────────────────────────────────────
+      - alert: ApiDown
+        expr: up{job="coreme-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CoreMe API is down"
+          description: "The Go REST API has been unreachable for >1 minute."
+
+      # ── High error rate ─────────────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{job="coreme-api",status=~"5.."}[5m])
+          /
+          rate(http_requests_total{job="coreme-api"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate on API"
+          description: "More than 5% of requests returned 5xx for 2 minutes."
+
+      # ── High latency ────────────────────────────────────────────────────────
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job="coreme-api"}[5m])
+          ) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency > 1s"
+          description: "95th percentile response time exceeded 1 second for 3 minutes."
+
+      # ── PostgreSQL ──────────────────────────────────────────────────────────
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "postgres-exporter cannot reach the database."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_activity_count > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High PostgreSQL connection count"
+          description: "More than 50 active connections for 5 minutes."
+
+      # ── Disk space ─────────────────────────────────────────────────────────
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} /
+           node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 15% disk space remaining on /."

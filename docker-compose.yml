@@ -1,0 +1,258 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: coreme_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-coreme}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── coturn TURN server (WebRTC NAT traversal) ─────────────────────────────────
+  turn:
+    build:
+      context: ./turn
+      dockerfile: Dockerfile
+    container_name: coreme_turn
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TURN_USERNAME: ${TURN_USERNAME:-coreme}
+      TURN_PASSWORD: ${TURN_PASSWORD}
+      TURN_REALM: ${TURN_REALM:-coreme.app}
+      TURN_PUBLIC_IP: ${TURN_PUBLIC_IP:-""}
+    profiles:
+      - turn
+
+  # ── Monitoring stack (use --profile observability to enable) ─────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coreme_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    profiles:
+      - observability
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: coreme_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    profiles:
+      - observability
+
+  loki:
+    image: grafana/loki:latest
+    container_name: coreme_loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - '3100:3100'
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    profiles:
+      - observability
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: coreme_alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-""}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-0}
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    profiles:
+      - observability
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: coreme_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-coreme}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - observability
+
+  # ── Jaeger (distributed tracing UI — порт 16686) ─────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: coreme_jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - '16686:16686'   # Jaeger UI
+      - '4318:4318'     # OTLP HTTP (internal use only — expose for dev)
+    profiles:
+      - observability
+
+  # ── NATS JetStream (порт 4222) ───────────────────────────────────────────────
+  nats:
+    image: nats:2-alpine
+    container_name: coreme_nats
+    restart: unless-stopped
+    command: ["--js", "--sd", "/data", "--http_port", "8222"]
+    ports:
+      - '4222:4222'
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz | grep -q ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: coreme_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Go REST API (порт 3001) ──────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: coreme_api
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      API_PORT: "3001"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-coreme}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SENTRY_DSN: ${SENTRY_DSN:-""}
+      APP_ENV: ${APP_ENV:-production}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      OTEL_SERVICE_NAME: coreme-api
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+
+  # ── Node.js Realtime (порт 3002) ─────────────────────────────────────────────
+  realtime:
+    build:
+      context: ./realtime
+      dockerfile: Dockerfile
+    container_name: coreme_realtime
+    restart: unless-stopped
+    ports:
+      - '3002:3002'
+    environment:
+      REALTIME_PORT: "3002"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-coreme}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379
+      NATS_URL: nats://nats:4222
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY:-""}
+      SENTRY_DSN: ${SENTRY_DSN:-""}
+      APP_ENV: ${APP_ENV:-production}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+
+  # ── Nginx reverse proxy (порти 80/443) ────────────────────────────────────────
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: coreme_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - nginx_ssl:/etc/nginx/ssl
+    depends_on:
+      api:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
+  uploads:
+  nginx_ssl:
+  prometheus_data:
+  grafana_data:
+  loki_data:
