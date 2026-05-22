@@ -10,3 +10,7 @@ local.properties
 *.jks
 *.keystore
 /keystore/
+
+# Go backend
+backend/.env
+backend/uploads/

@@ -7,7 +7,7 @@
 # URL бэкенда для debug-сборки.
 # 10.0.2.2 — это localhost твоего компьютера из эмулятора Android.
 # Если запускаешь на физическом устройстве в той же Wi-Fi сети, используй IP компьютера.
-debug.base.url=http://10.0.2.2:3000
+debug.base.url=http://10.0.2.2:3001
 
 # URL бэкенда для release-сборки.
 release.base.url=https://api.coreme.app
